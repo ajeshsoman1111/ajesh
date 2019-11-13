@@ -1,0 +1,222 @@
+---
+title: "Customer Segementation using Machine Learning"
+output: html_notebook
+---
+#Introduction
+
+Customer Segementation-  is the process of division of customer base into several groups of individuals that share a similarity in different ways that are relevant to marketing. 
+
+
+```{r}
+customer_data=data.frame(mallcustomer)
+str(customer_data)
+View(customer_data)
+names(customer_data)
+```
+Now showing the head data. 
+```{r}
+head(customer_data)
+```
+Now the discriptional analysis of Age ,income and Spending score.
+```{r}
+summary(customer_data$Age)
+print(paste("standard deviation",sd(customer_data$Age)))
+
+
+```
+```{r}
+summary(customer_data$Annual.Income..k..)
+print(paste("standard deviation",sd(customer_data$Annual.Income..k..)))
+```
+```{r}
+summary(customer_data$Spending.Score..1.100.)
+print(paste("standard deviation",sd(customer_data$Spending.Score..1.100.)))
+```
+Visualisation of Data
+```{r}
+library(ggplot2)
+t=table(customer_data$Gender)
+barplot(t,main = "Gender Comparison",xlab = "gender",ylab = "count",col = rainbow(2))
+```
+From the above plot ,We understand that number of females are higher than males but to know the proportion of females and males in the data,
+We proprotional visualisation using pie chart.
+```{r}
+install.packages("plotrix")
+library(plotrix)
+per=round(t/sum(t)*100)
+lbs=paste(c("Female","Male")," ",per,"%",sep=" ")
+pie3D(t,labels=lbs,
+   main="Pie Chart Depicting Ratio of Female and Male")
+```
+From the above graph, we conclude that the proportion of females is 56%, whereas the proportion of male in the customer dataset is 44%.
+
+Now to plot the frequency of the age of the customers,We will do histogram plot.
+```{r}
+
+hist(customer_data$Age,
+    col="steelblue",
+    main="Histogram to Show Count of Age Class",
+    xlab="Age Class",
+    ylab="Frequency",
+    labels=TRUE)
+```
+Now we can also visualise the summary of age by using the boxplot.
+```{r}
+boxplot(customer_data$Age,
+       col="#ff0066",
+       main="Boxplot for Descriptive Analysis of Age",ylab="Age")
+```
+From the above plots,we conclude that the maximum customer are of age  between 30 and 35. The minimum age of customers is 18, whereas, the maximum age is 70.
+
+Now for visualisation of analyze the annual income,We use histogram and the density plot.
+```{r}
+hist(customer_data$Annual.Income..k..,
+  col="#660033",
+  main="Histogram for Annual Income",
+  xlab="Annual Income Class",
+  ylab="Frequency",
+  labels=TRUE)
+```
+From the above data,we conclude that most of the customer's annual income are under 60 to 70k.
+
+Now the density plot of customer's annual income data.
+```{r}
+plot(density(customer_data$Annual.Income..k..),
+    col="yellow",
+    main="Density Plot for Annual Income",
+    xlab="Annual Income Class",
+    ylab="Density")
+polygon(density(customer_data$Annual.Income..k..),
+        col="yellow")
+```
+Now to make the understanding about spending score graphically ,We will do some visualisation.
+```{r}
+boxplot(customer_data$Spending.Score..1.100.,
+   horizontal=TRUE,
+   col="#990000",
+   main="BoxPlot for Descriptive Analysis of Spending Score")
+
+```
+```{r}
+hist(customer_data$Spending.Score..1.100.,
+    main="HistoGram for Spending Score",
+    xlab="Spending Score Class",
+    ylab="Frequency",
+    col="#6600cc",
+    labels=TRUE)
+```
+So from the above boxplot we conclude that maximum and minimum spending scores are 1 and 99 respectively,and average spending score is near 50 (50.20 exact from the summary ).
+
+Calculating Optimal Clusters by Elbow Method.
+```{r}
+install.packages("purrr")
+library(purrr)
+set.seed(123)
+#calculate total intra-cluster sum of square 
+iss <- function(k) {
+  kmeans(customer_data[,3:5],k,iter.max=100,nstart=100,algorithm="Lloyd" )$tot.withinss
+}
+K.values=1:10
+iss.values=map_dbl(K.values,iss)
+plot(K.values, iss.values,
+    type="b", pch = 19, frame = FALSE, 
+    xlab="Number of clusters K",
+    ylab="Total intra-clusters sum of squares",main = "Elbow Plot")
+
+```
+From the above Elbow Plot, 6 is appeared to be the point after which the bend is about to begin, so we can conclude that 6 is the optimal value for number of clusters.
+
+Average Silhouette Method
+Using this method we can determine the quality of the intra-clusters.
+```{r}
+library(cluster)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(tidyverse)
+library(purrr)
+sil=function(k){
+  k2<-kmeans(customer_data[,3:5],k,iter.max=100,nstart=50,algorithm="Lloyd")
+ s2<-silhouette(k2$cluster,dist(customer_data[,3:5],"euclidean"))
+ colMeans(s2)[3]
+}
+sil(2)
+
+
+```
+In silhouette method,The average sil_width is the measure of quality of cluster.The higher the value of average sil_width , the better the quality  within the intra-clusters.
+
+So in order to determine the optimum value of k for clustering we have to check the average sil_width for different values of k then select the max value of average sil_width and the k corresponds to that will be the optimum value.
+```{r}
+op_sil_k=function(data){
+  
+  s3=map_dbl(2:10,sil)
+  s5=as.matrix(s3)
+  for(index in 1:ncol(s5)){
+  s6=which(s5==max(s5))
+  s8=s6+1
+  }
+  print(paste("optimum value of k = ",s8))
+}
+op_sil_k()
+```
+Here we made a function which will iterate the average sil_width for different value  of k and returns the value of k with max sil_width.
+hence we got 6 as the optimum value for k.
+We can also determine the optimu value of k by visualisation.
+```{r}
+install.packages("NbClust")
+library(NbClust)
+library(factoextra)
+fviz_nbclust(customer_data[,3:5], kmeans, method = "silhouette")
+
+```
+Hence from the above plot we can see the highest value of average sil_width corresponds to k=6.
+
+Determining optimum value of k by Gap statisics
+```{r}
+set.seed(125)
+stat_gap <- clusGap(customer_data[,3:5], FUN = kmeans, nstart = 25,
+            K.max = 10, B = 50)
+fviz_gap_stat(stat_gap)
+```
+Here optimum value of k is determined by getting the highest value of gap statistic after which the gap satatistic curve begin to become almost constant.thus from the above graph we get the k = 6.
+
+So,now we can get the good quality clusters by using value of k=6.
+```{r}
+k6<-kmeans(customer_data[,3:5],6,iter.max=100,nstart=50,algorithm="Lloyd")
+k6
+```
+Now visualising the cluster result usiing ggplot2
+```{r}
+library(ggplot2)
+set.seed(1)
+ggplot(customer_data, aes(x =Annual.Income..k.., y = Spending.Score..1.100.)) + 
+  geom_point(stat = "identity", aes(color = as.factor(k6$cluster))) +
+  scale_color_discrete(name=" ",
+              breaks=c("1", "2", "3", "4", "5","6"),
+              labels=c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5","Cluster 6")) +
+  ggtitle("Segments of Mall Customers", subtitle = "Using K-means Clustering")+theme(
+  panel.background = element_rect(fill = "#BFD5E3", colour = "#6D9EC1",
+                                size = 2, linetype = "solid"),plot.background = element_rect(fill = "#6D9EC1"))
+```
+Hence from the above graph we came to knnow that
+Cluster6 - having high annual income and high spending score.
+Cluster5 - having high annual income but low spending score.
+Cluster4 & Cluster1- having medium annual income and medium spending score.
+Cluster3 - having low annual income and low spending score.
+Cluster2 - having low annual income but high spending score.
+
+Similarily we can do the visualisation for Age and spending score.
+```{r}
+ggplot(customer_data, aes(x =Annual.Income..k.., y =Age)) + 
+  geom_point(stat = "identity", aes(color = as.factor(k6$cluster))) +
+  scale_color_discrete(name=" ",
+                      breaks=c("1", "2", "3", "4", "5","6"),
+                      labels=c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5","Cluster 6")) +
+  ggtitle("Segments of Mall Customers", subtitle = "Using K-means Clustering")
+```
+Visualizing cluster using fviz function.
+```{r}
+fviz_cluster(k6, data = customer_data[,3:5])
+```
+Hence with the help of the clustering method we can disect/segementise the customers for better approach.
